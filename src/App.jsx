@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import DatePicker from './components/DatePicker';
 import DarkModeToggle from './components/DarkModeToggle';
-import TimezoneList from './components/TimezoneList';
+import TimezoneList from './components/TimeZoneList';
 import moment from 'moment';
 
 function App() {
