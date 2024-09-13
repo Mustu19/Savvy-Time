@@ -17,7 +17,7 @@ function DatePicker({ sliderTime, onDateChange }) {
 
   return (
     <div className="mb-4">
-      <label className="block text-lg text-white-500 mb-2">Select Date:</label>
+      <label className="block -500 text-lg text-whitemb-2">Select Date:</label>
       <input
         type="date"
         onChange={handleDateChange}
