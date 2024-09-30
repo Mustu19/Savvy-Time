@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import moment from 'moment-timezone';
 import Slider from './Slider';
 import TimezoneSearch from './TimeZoneSearch';
 
@@ -23,21 +22,9 @@ function TimezoneList({ sliderTime, setSliderTime, timezones, setTimezones }) {
     setTimezones(reorderedTimezones);
   };
 
-  // const reverseTimezones = () => {
-  //   setTimezones((prev) => [...prev].reverse());
-  // };
-
   return (
     <div className="p-4 bg-white text-black">
       <TimezoneSearch onAddTimezone={addTimezone} />
-      {/* <div className="flex space-x-2 mb-4">
-        <button
-          onClick={reverseTimezones}
-          className="p-2 border border-gray-300 rounded bg-blue-500 text-white"
-        >
-          Reverse Order
-        </button>
-      </div> */}
       <DragDropContext onDragEnd={handleOnDragEnd}>
         <Droppable droppableId="timezones">
           {(provided) => (

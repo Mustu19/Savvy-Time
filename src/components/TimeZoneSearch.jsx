@@ -1,26 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import moment from 'moment-timezone';
 
 const allTimezones = moment.tz.names();
 
 function TimezoneSearch({ onAddTimezone }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredTimezones, setFilteredTimezones] = useState([]);
   const [visibleSuggestions, setVisibleSuggestions] = useState(5);
 
-  const handleSearchChange = (e) => {
-    const inputValue = e.target.value.toLowerCase();
-    setSearchTerm(inputValue);
+  const filteredTimezones = useMemo(() => {
+    if (searchTerm.length === 0) return [];
+    return allTimezones.filter((timezone) =>
+      timezone.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm]);
 
-    if (inputValue.length > 0) {
-      const filtered = allTimezones.filter((timezone) =>
-        timezone.toLowerCase().includes(inputValue)
-      );
-      setFilteredTimezones(filtered);
-      setVisibleSuggestions(5);
-    } else {
-      setFilteredTimezones([]);
-    }
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setVisibleSuggestions(5);
   };
 
   const handleShowMore = () => {
@@ -30,40 +26,36 @@ function TimezoneSearch({ onAddTimezone }) {
   const handleAddTimezone = (timezone) => {
     onAddTimezone(timezone);
     setSearchTerm('');
-    setFilteredTimezones([]);
   };
 
   return (
-    <div className="relative mb-4">
+    <div className="mb-4">
       <input
         type="text"
+        placeholder="Search Timezone..."
         value={searchTerm}
         onChange={handleSearchChange}
-        placeholder="Search country/town and add timezone"
-        className="p-2 border border-gray-300 rounded w-full"
+        className="border p-2 rounded"
       />
-
-      {filteredTimezones.length > 0 && (
-        <ul className="absolute z-10 bg-white border border-gray-300 rounded w-full mt-1 max-h-40 overflow-y-auto">
-          {filteredTimezones.slice(0, visibleSuggestions).map((timezone, index) => (
-            <li
-              key={index}
-              onClick={() => handleAddTimezone(timezone)}
-              className="p-2 hover:bg-blue-200 cursor-pointer"
-            >
-              {timezone}
-            </li>
-          ))}
-          {visibleSuggestions < filteredTimezones.length && (
-            <li
-              onClick={handleShowMore}
-              className="p-2 text-center text-blue-500 cursor-pointer hover:bg-blue-100"
-            >
-              Show more...
-            </li>
-          )}
-        </ul>
-      )}
+      <ul className="mt-2 border rounded bg-white shadow">
+        {filteredTimezones.slice(0, visibleSuggestions).map((timezone) => (
+          <li
+            key={timezone}
+            onClick={() => handleAddTimezone(timezone)}
+            className="cursor-pointer hover:bg-gray-200 p-2"
+          >
+            {timezone}
+          </li>
+        ))}
+        {visibleSuggestions < filteredTimezones.length && (
+          <li
+            onClick={handleShowMore}
+            className="cursor-pointer hover:bg-gray-200 p-2 text-center"
+          >
+            Show more...
+          </li>
+        )}
+      </ul>
     </div>
   );
 }

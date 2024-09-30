@@ -1,13 +1,39 @@
-import React, { useState } from 'react';
-import DatePicker from './components/DatePicker';
-import DarkModeToggle from './components/DarkModeToggle';
-import TimezoneList from './components/TimeZoneList';
-import moment from 'moment';
+import React, { useEffect, useState, useCallback } from "react";
+import DatePicker from "./components/DatePicker";
+import DarkModeToggle from "./components/DarkModeToggle";
+import TimezoneList from "./components/TimezoneList";
+import moment from "moment";
+import { useLocation, useNavigate } from "react-router-dom";
 
 function App() {
   const [sliderTime, setSliderTime] = useState(moment());
   const [darkMode, setDarkMode] = useState(true);
-  const [timezones, setTimezones] = useState(['Asia/Kolkata']);
+  const [timezones, setTimezones] = useState([]);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Memoized function to extract timezones from URL
+  const extractTimezonesFromUrl = useCallback(() => {
+    const pathTimezones = location.pathname.substring(1).split("-to-");
+    const validTimeZones = pathTimezones.filter((tz) =>
+      moment.tz.names().includes(tz)
+    );
+
+    setTimezones(validTimeZones.length > 0 ? validTimeZones : ["Asia/Kolkata"]);
+  }, [location.pathname]);
+
+  // Extract timezones from URL on initial load
+  useEffect(() => {
+    extractTimezonesFromUrl();
+  }, [extractTimezonesFromUrl]);
+
+  // Update URL whenever the timezones state changes
+  useEffect(() => {
+    if (timezones.length > 0) {
+      const path = timezones.join("-to-");
+      navigate(`/${path}`, { replace: true });
+    }
+  }, [timezones, navigate]);
 
   const handleDateChange = (newTime) => {
     setSliderTime(newTime);
@@ -23,28 +49,55 @@ function App() {
 
   const scheduleGoogleMeet = () => {
     const startTime = sliderTime.format("YYYYMMDDTHHmmss");
-    const endTime = sliderTime.clone().add(2, 'hours').format("YYYYMMDDTHHmmss");
+    const endTime = sliderTime
+      .clone()
+      .add(2, "hours")
+      .format("YYYYMMDDTHHmmss");
 
-    const timezoneDetails = timezones.map((timezone) => {
-      const timeInZone = sliderTime.clone().tz(timezone);
-      return `${timezone}: ${timeInZone.format('hh:mm A')} ${timeInZone.format('ddd, MMM D YYYY')}`;
-    }).join('\n');
+    const timezoneDetails = timezones
+      .map((timezone) => {
+        const timeInZone = sliderTime.clone().tz(timezone);
+        return `${timezone}: ${timeInZone.format(
+          "hh:mm A"
+        )} ${timeInZone.format("ddd, MMM D YYYY")}`;
+      })
+      .join("\n");
 
     const details = `${timezoneDetails}\n\nScheduled with Savvy Time`;
     const encodedDetails = encodeURIComponent(details);
 
     const googleCalendarUrl = `https://calendar.google.com/calendar/u/0/r/eventedit?dates=${startTime}/${endTime}&text=Scheduled+Meet&details=${encodedDetails}&location=&sf=true&output=xml`;
 
-    window.open(googleCalendarUrl, '_blank');
+    window.open(googleCalendarUrl, "_blank");
+  };
+
+  // Function to handle generating and copying the shareable link
+  const handleShareLinkClick = () => {
+    const currentUrl = `${window.location.origin}/${timezones.join("-to-")}`;
+
+    // Copy the URL to the clipboard
+    navigator.clipboard
+      .writeText(currentUrl)
+      .then(() => {
+        alert("URL copied to clipboard: " + currentUrl);
+      })
+      .catch((err) => {
+        console.error("Could not copy text: ", err);
+      });
   };
 
   return (
-    <div className={`App ${darkMode ? 'dark bg-gray-900 text-gray-200' : 'light bg-white text-gray-800'} min-h-screen flex flex-col items-center justify-between p-4`}>
-      
-      {/* Heading: Savvy Time Converter */}
-      <h1 className="text-4xl font-sans font-semibold uppercase text-center my-6 italic">Savvy Time Zone</h1>
+    <div
+      className={`App ${
+        darkMode
+          ? "dark bg-gray-900 text-gray-200"
+          : "light bg-white text-gray-800"
+      } min-h-screen flex flex-col items-center justify-between p-4`}
+    >
+      <h1 className="text-4xl font-sans font-semibold uppercase text-center my-6 italic">
+        Savvy Time Zone
+      </h1>
 
-      {/* Top Row: Reverse Order, Dark Mode, Schedule Button, Select Date */}
       <div className="flex items-center justify-between w-full max-w-4xl mb-6 p-4 bg-gray-300 dark:bg-gray-700 rounded-lg shadow-lg">
         <button
           onClick={reverseTimezones}
@@ -60,9 +113,14 @@ function App() {
         >
           Schedule Meet
         </button>
+        <button
+          onClick={handleShareLinkClick}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow-lg transition ml-4"
+        >
+          Share Link
+        </button>
       </div>
 
-      {/* Bottom Row: Timezone List */}
       <div className="w-full max-w-4xl p-4 bg-gray-300 dark:bg-gray-700 rounded-lg shadow-lg mb-16">
         <TimezoneList
           sliderTime={sliderTime}
@@ -72,17 +130,31 @@ function App() {
         />
       </div>
 
-      {/* Footer: Made by Mustafa Kapasi */}
       <footer className="w-full max-w-4xl p-4 bg-gray-300 dark:bg-gray-700 rounded-lg shadow-lg mb-16">
         <p className="mb-2 text-center">Made by Mustafa Kapasi</p>
         <div className="flex justify-center space-x-4">
-          <a href="https://www.linkedin.com/in/mustafakapasi19" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+          <a
+            href="https://www.linkedin.com/in/mustafakapasi19"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
             LinkedIn
           </a>
-          <a href="https://github.com/Mustu19" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+          <a
+            href="https://github.com/Mustu19"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
             GitHub
           </a>
-          <a href="https://linktr.ee/mustafakapasi19" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+          <a
+            href="https://linktr.ee/mustafakapasi19"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
             Linktree
           </a>
         </div>
