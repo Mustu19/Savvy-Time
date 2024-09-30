@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import DatePicker from "./components/DatePicker.jsx";
 import DarkModeToggle from "./components/DarkModeToggle.jsx";
-import TimezoneList from "./components/TimeZoneList.jsx";
+import TimezoneList from "./components/TimezoneList.jsx";
 import moment from "moment";
 import { useLocation, useNavigate } from "react-router-dom";
 
