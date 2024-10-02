@@ -1,39 +1,94 @@
 import React, { useEffect, useState, useCallback } from "react";
-import DatePicker from "./components/DatePicker.jsx";
-import DarkModeToggle from "./components/DarkModeToggle.jsx";
-import TimezoneList from "./components/TimeZoneList.jsx";
+import DatePicker from "./components/DatePicker";
+import DarkModeToggle from "./components/DarkModeToggle";
+import TimezoneList from "./components/TimezoneList";
 import moment from "moment";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 function App() {
   const [sliderTime, setSliderTime] = useState(moment());
   const [darkMode, setDarkMode] = useState(true);
   const [timezones, setTimezones] = useState([]);
-  const location = useLocation();
+  const [userTimezone, setUserTimezone] = useState("");
+  const [history, setHistory] = useState([]);
+  const [future, setFuture] = useState([]);
   const navigate = useNavigate();
 
-  // Memoized function to extract timezones from URL
-  const extractTimezonesFromUrl = useCallback(() => {
-    const pathTimezones = location.pathname.substring(1).split("-to-");
-    const validTimeZones = pathTimezones.filter((tz) =>
-      moment.tz.names().includes(tz)
-    );
+  // Function to load timezones from local storage
+  const loadTimezonesFromLocalStorage = useCallback(() => {
+    const storedTimezones = JSON.parse(localStorage.getItem("timezones"));
+    if (storedTimezones && storedTimezones.length > 0) {
+      setTimezones(storedTimezones);
+    } else {
+      setDefaultTimezone();
+    }
+  }, []);
 
-    setTimezones(validTimeZones.length > 0 ? validTimeZones : ["Asia/Kolkata"]);
-  }, [location.pathname]);
-
-  // Extract timezones from URL on initial load
-  useEffect(() => {
-    extractTimezonesFromUrl();
-  }, [extractTimezonesFromUrl]);
-
-  // Update URL whenever the timezones state changes
+  // Store timezones in local storage whenever the timezones state changes
   useEffect(() => {
     if (timezones.length > 0) {
-      const path = timezones.join("-to-");
-      navigate(`/${path}`, { replace: true });
+      localStorage.setItem("timezones", JSON.stringify(timezones));
     }
-  }, [timezones, navigate]);
+  }, [timezones]);
+
+  // Load timezones from local storage on initial load
+  useEffect(() => {
+    loadTimezonesFromLocalStorage();
+  }, [loadTimezonesFromLocalStorage]);
+
+  // Load history and future from local storage on initial load
+  useEffect(() => {
+    const storedHistory = JSON.parse(localStorage.getItem("history")) || [];
+    const storedFuture = JSON.parse(localStorage.getItem("future")) || [];
+    setHistory(storedHistory);
+    setFuture(storedFuture);
+  }, []);
+
+  const setDefaultTimezone = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const timezone = moment.tz.guess(); // Use guessed timezone from moment.js
+          setUserTimezone(timezone);
+
+          // Set default timezone only if local storage is empty
+          if (timezones.length === 0) {
+            setTimezones([timezone]);
+          }
+        },
+        (error) => {
+          console.error("Error fetching location:", error);
+          const fallbackTimezone = moment.tz.guess(); // Fallback to guessed timezone
+          setUserTimezone(fallbackTimezone);
+
+          // Set fallback timezone only if local storage is empty
+          if (timezones.length === 0) {
+            setTimezones([fallbackTimezone]);
+          }
+        }
+      );
+    } else {
+      // Fallback if geolocation is not available
+      const fallbackTimezone = moment.tz.guess();
+      setUserTimezone(fallbackTimezone);
+
+      // Set fallback timezone only if local storage is empty
+      if (timezones.length === 0) {
+        setTimezones([fallbackTimezone]);
+      }
+    }
+  };
+
+  const checkDarkModeTime = () => {
+    const currentHour = new Date().getHours();
+    return currentHour >= 18 || currentHour < 6; // Dark mode between 6 PM and 6 AM
+  };
+
+  // Set dark mode automatically based on the user's current time
+  useEffect(() => {
+    const isNightTime = checkDarkModeTime();
+    setDarkMode(isNightTime);
+  }, []);
 
   const handleDateChange = (newTime) => {
     setSliderTime(newTime);
@@ -71,11 +126,8 @@ function App() {
     window.open(googleCalendarUrl, "_blank");
   };
 
-  // Function to handle generating and copying the shareable link
   const handleShareLinkClick = () => {
-    const currentUrl = `${window.location.origin}/${timezones.join("-to-")}`;
-
-    // Copy the URL to the clipboard
+    const currentUrl = `${window.location.origin}`;
     navigator.clipboard
       .writeText(currentUrl)
       .then(() => {
@@ -84,6 +136,45 @@ function App() {
       .catch((err) => {
         console.error("Could not copy text: ", err);
       });
+  };
+
+  // Function to update timezones and manage history
+  const updateTimezones = (newTimezones) => {
+    setHistory((prev) => [...prev, timezones]); // Store the current state in history
+    setFuture([]); // Clear future states
+    setTimezones(newTimezones);
+
+    // Save history and future to local storage
+    localStorage.setItem("history", JSON.stringify([...history, timezones]));
+    localStorage.setItem("future", JSON.stringify([]));
+  };
+
+  // Function to undo the last change
+  const handleUndo = () => {
+    if (history.length > 0) {
+      const lastState = history[history.length - 1];
+      setFuture((prev) => [timezones, ...prev]); // Store the current state in future
+      setTimezones(lastState); // Restore the last state
+      setHistory((prev) => prev.slice(0, -1)); // Remove last state from history
+
+      // Save updated history and future to local storage
+      localStorage.setItem("history", JSON.stringify(history.slice(0, -1)));
+      localStorage.setItem("future", JSON.stringify([timezones, ...future]));
+    }
+  };
+
+  // Function to redo the last undone change
+  const handleRedo = () => {
+    if (future.length > 0) {
+      const nextState = future[0];
+      setHistory((prev) => [...prev, timezones]); // Store the current state in history
+      setTimezones(nextState); // Restore the next state
+      setFuture((prev) => prev.slice(1)); // Remove the restored state from future
+
+      // Save updated history and future to local storage
+      localStorage.setItem("history", JSON.stringify([...history, timezones]));
+      localStorage.setItem("future", JSON.stringify(future.slice(1)));
+    }
   };
 
   return (
@@ -104,6 +195,18 @@ function App() {
           className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow-lg transition mr-4"
         >
           Reverse Order
+        </button>
+        <button
+          onClick={handleUndo}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow-lg transition mr-4"
+        >
+          Undo
+        </button>
+        <button
+          onClick={handleRedo}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow-lg transition"
+        >
+          Redo
         </button>
         <DarkModeToggle darkMode={darkMode} onToggle={handleDarkModeToggle} />
         <DatePicker sliderTime={sliderTime} onDateChange={handleDateChange} />
@@ -126,7 +229,7 @@ function App() {
           sliderTime={sliderTime}
           setSliderTime={setSliderTime}
           timezones={timezones}
-          setTimezones={setTimezones}
+          setTimezones={updateTimezones} // Use the updated function
         />
       </div>
 
